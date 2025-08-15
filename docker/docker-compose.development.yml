@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Frontend Development Services
+  app-shell:
+    build:
+      context: ../../e-commerce-app-shell-frontend
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-app-shell-dev
+    ports:
+      - "4200:4200"
+    volumes:
+      - ../../e-commerce-app-shell-frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - ecommerce-network
+
+  customer-frontend:
+    build:
+      context: ../../e-commerce-customer-management-frontend
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-customer-frontend-dev
+    ports:
+      - "4201:4201"
+    volumes:
+      - ../../e-commerce-customer-management-frontend:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-network
+
+  product-frontend:
+    build:
+      context: ../../e-commerce-product-catalog-frontend
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-product-frontend-dev
+    ports:
+      - "4202:4202"
+    volumes:
+      - ../../e-commerce-product-catalog-frontend:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-network
+
+  order-frontend:
+    build:
+      context: ../../e-commerce-order-management-frontend
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-order-frontend-dev
+    ports:
+      - "4203:4203"
+    volumes:
+      - ../../e-commerce-order-management-frontend:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-network
+
+  dashboard-frontend:
+    build:
+      context: ../../e-commerce-dashboard-frontend
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-dashboard-frontend-dev
+    ports:
+      - "4204:4204"
+    volumes:
+      - ../../e-commerce-dashboard-frontend:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    external: true

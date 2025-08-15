@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    image: ghcr.io/your-org/e-commerce-api-gateway:latest
+    ports:
+      - "7000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Redis__ConnectionString=redis:6379
+      - ReverseProxy__Clusters__customers__Destinations__destination1__Address=http://customer-service:8080/
+      - ReverseProxy__Clusters__products__Destinations__destination1__Address=http://product-service:8080/
+      - ReverseProxy__Clusters__orders__Destinations__destination1__Address=http://order-service:8080/
+    depends_on:
+      - keycloak
+      - redis
+      - customer-service
+      - product-service
+      - order-service
+    networks:
+      - ecommerce-network
+
+  # Customer Management Service
+  customer-service:
+    image: ghcr.io/your-org/e-commerce-customer-management-backend:latest
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_CustomerManagement;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+
+  # Product Catalog Service
+  product-service:
+    image: ghcr.io/your-org/e-commerce-product-catalog-backend:latest
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_ProductCatalog;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+
+  # Order Management Service
+  order-service:
+    image: ghcr.io/your-org/e-commerce-order-management-backend:latest
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_OrderManagement;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+
+  # Databases
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Password123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    networks:
+      - ecommerce-network
+
+  # Authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123
+      - KC_DB=dev-file
+    ports:
+      - "8080:8080"
+    command: start-dev
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+    networks:
+      - ecommerce-network
+
+  # Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - ecommerce-network
+
+  # Caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ecommerce-network
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - ecommerce-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ecommerce-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - ecommerce-network
+
+volumes:
+  sql-data:
+  keycloak-data:
+  rabbitmq-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

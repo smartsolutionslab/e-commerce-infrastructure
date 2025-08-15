@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ../../e-commerce-api-gateway
+      dockerfile: Dockerfile
+    container_name: ecommerce-api-gateway
+    ports:
+      - "7000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Authentication__RequireHttpsMetadata=false
+      - Redis__ConnectionString=redis:6379
+      - ReverseProxy__Clusters__customers__Destinations__destination1__Address=http://customer-service:8080/
+      - ReverseProxy__Clusters__products__Destinations__destination1__Address=http://product-service:8080/
+      - ReverseProxy__Clusters__orders__Destinations__destination1__Address=http://order-service:8080/
+    depends_on:
+      - keycloak
+      - redis
+      - customer-service
+      - product-service
+      - order-service
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Customer Management Service
+  customer-service:
+    build:
+      context: ../../e-commerce-customer-management-backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-customer-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_CustomerManagement;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Authentication__RequireHttpsMetadata=false
+      - MessageBroker__Host=rabbitmq
+      - MessageBroker__Username=admin
+      - MessageBroker__Password=admin123
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Product Catalog Service
+  product-service:
+    build:
+      context: ../../e-commerce-product-catalog-backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-product-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_ProductCatalog;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Authentication__RequireHttpsMetadata=false
+      - MessageBroker__Host=rabbitmq
+      - MessageBroker__Username=admin
+      - MessageBroker__Password=admin123
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Order Management Service
+  order-service:
+    build:
+      context: ../../e-commerce-order-management-backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-order-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=ECommerce_OrderManagement;User Id=sa;Password=Password123!;TrustServerCertificate=true
+      - Authentication__Authority=http://keycloak:8080/realms/ecommerce
+      - Authentication__RequireHttpsMetadata=false
+      - MessageBroker__Host=rabbitmq
+      - MessageBroker__Username=admin
+      - MessageBroker__Password=admin123
+    depends_on:
+      - sql-server
+      - keycloak
+      - rabbitmq
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  ecommerce-network:
+    external: true
