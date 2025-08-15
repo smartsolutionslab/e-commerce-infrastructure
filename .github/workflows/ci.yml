@@ -1,0 +1,42 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+    
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+      working-directory: ./terraform
+    
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ./terraform/azure
+    
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: ./terraform/azure
+    
+    - name: Docker Compose Validation
+      run: |
+        docker-compose -f docker/docker-compose.infrastructure.yml config
+        docker-compose -f docker/docker-compose.services.yml config
+    
+    - name: Kubernetes Manifests Validation
+      run: |
+        for file in kubernetes/production/*.yaml; do
+          kubectl --dry-run=client apply -f "$file"
+        done
